@@ -52,9 +52,20 @@ namespace CNTK
         return std::shared_ptr<std::vector<Variable>>(new std::vector<Variable>(std::move(inputs)), [](std::vector<Variable>* ptr) { delete ptr; });
     }
 
+
     Function::Function(const std::vector<Variable>& inputs, Dictionary&& functionConfig, const std::wstring& name, const std::wstring& uid)
         : Function(inputs, std::move(functionConfig), nullptr, name, uid)
     {}
+
+    std::shared_ptr<std::vector<Variable>> Function::OutputsImpl() const
+    {
+        std::vector<Variable> outputs;
+        for (auto& v : m_outputs)
+        {
+            outputs.push_back(v.OwnerPreservingCopy());
+        }
+        return std::shared_ptr<std::vector<Variable>>(new std::vector<Variable>(std::move(outputs)), [](std::vector<Variable>* ptr) { delete ptr; });
+    }
 
     Function::Function(const std::vector<Variable>& inputs, const std::wstring& name, const std::wstring& uid) :
         Function(inputs, Dictionary(), name, uid) {}
@@ -65,6 +76,11 @@ namespace CNTK
         for (auto inputVar : inputs)
         {
             m_inputs.push_back(inputVar);
+            if (m_inputs.back().m_outputOwnerFunction != nullptr)
+            {
+                // Nuke the owner ptr to allow release of cyclic graphs.
+                m_inputs.back().m_outputOwnerFunction = nullptr;
+            }
 
             if (!inputVar.IsInput() &&
                 !inputVar.IsOutput() &&
@@ -75,6 +91,14 @@ namespace CNTK
                 InvalidArgument("Function input has invalid VariableKind!");
             }
         }
+    }
+
+    Variable Function::Output() const
+    {
+        if (m_outputs.size() > 1)
+            RuntimeError("A Function instance with more than one output cannot be implicitly converted to a Variable");
+
+        return Variable(m_outputs.front().OwnerPreservingCopy());
     }
 
     /*virtual*/ Function::~Function() {}
@@ -191,6 +215,11 @@ namespace CNTK
             for (auto& inputVar : m_inputs)
             {
                 ReplacePlaceholderInPlace(inputVar, placeholderReplacements, replacedPlaceholders);
+                if (inputVar.m_outputOwnerFunction != nullptr)
+                {
+                    // Nuke the owner ptr to allow release of cyclic graphs.
+                    inputVar.m_outputOwnerFunction = nullptr;
+                }
 
                 if (inputVar.IsOutput() && (visitedFunctions.find(inputVar.Owner().get()) == visitedFunctions.end()))
                     inputVar.Owner()->ReplacePlaceholdersInPlace(placeholderReplacements, visitedFunctions, replacedPlaceholders);

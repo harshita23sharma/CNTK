@@ -114,17 +114,17 @@ namespace CNTK
        
         std::vector<DictionaryValue>  functionDictionaries;
         std::unordered_set<std::wstring> outputUids;
-        for (const auto& primitiveFunciton : topoSortedPrimitiveFunctions)
+        for (const auto& primitiveFunction : topoSortedPrimitiveFunctions)
         {
-            for (const auto& output : primitiveFunciton->Outputs())
+            for (const auto& output : primitiveFunction->Outputs())
             {
                 if (outputUids.find(output.Uid()) != outputUids.end())
                     LogicError("Output uids of all primitive functions in a function graph must be unique");
 
-                outputUids.insert(primitiveFunciton->Uid());
+                outputUids.insert(primitiveFunction->Uid());
             }
 
-            functionDictionaries.push_back(primitiveFunciton->Serialize());
+            functionDictionaries.push_back(primitiveFunction->Serialize());
         }
 
         dict[functionsKey] = std::move(functionDictionaries);
@@ -1316,7 +1316,7 @@ namespace CNTK
         else
             InvalidArgument("Unsupported DataType %s", DataTypeName(dataType));
 
-        std::unordered_set<Variable> functionOutputs(this->Outputs().begin(), this->Outputs().end());
+        std::unordered_set<Variable> functionOutputs(m_outputs.begin(), m_outputs.end());
         std::vector<ComputationNodeBasePtr> outputsToEvaluate;
         std::unordered_set<Variable> requiredArguments;
         for (auto outputVarValuePair : outputs)

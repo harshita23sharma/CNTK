@@ -78,12 +78,23 @@ namespace CNTK
             return nullptr;
     }
 
+    Variable Variable::OwnerPreservingCopy() const
+    {
+        Variable result;
+        result.m_outputOwnerFunction = Owner();
+        result.m_dataFields = m_dataFields;
+        return result;
+    }
+
     void Variable::SetOwner(Function* ownerFunction)
     {
         if (Kind() != VariableKind::Output)
             LogicError("Variable::SetOwner: Owner can only be set for Output Variables!");
 
         if (m_dataFields->m_ownerFunction != nullptr)
+            LogicError("Variable::SetOwner: An Output Variable whose owner has previously been set, cannot be reset!");
+
+        if (m_outputOwnerFunction.get() != nullptr && m_outputOwnerFunction.get() == ownerFunction)
             LogicError("Variable::SetOwner: An Output Variable whose owner has previously been set, cannot be reset!");
 
         m_dataFields->m_ownerFunction = ownerFunction;

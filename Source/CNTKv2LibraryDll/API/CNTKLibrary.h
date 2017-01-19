@@ -816,31 +816,8 @@ namespace CNTK
         class UniqueDynamicAxesNames
         {
         public:
-            bool RegisterAxisName(const std::wstring& axisName)
-            {
-                std::unique_lock<std::mutex> lock(m_mutex);
-                return m_allKnownDynamicAxisNames.insert(axisName).second;
-            }
-
-            const std::wstring& NewUniqueDynamicAxisName(const std::wstring& axisNamePrefix)
-            {
-                std::unique_lock<std::mutex> lock(m_mutex);
-                if (m_allKnownDynamicAxisNames.find(axisNamePrefix) == m_allKnownDynamicAxisNames.end())
-                {
-                    m_allKnownDynamicAxisNames.insert(axisNamePrefix);
-                    return axisNamePrefix;
-                }
-
-                for (size_t i = 1;; i++)
-                {
-                    auto newDynamicAxisName = axisNamePrefix + std::to_wstring(i);
-                    if (m_allKnownDynamicAxisNames.find(newDynamicAxisName) == m_allKnownDynamicAxisNames.end())
-                    {
-                        m_allKnownDynamicAxisNames.insert(newDynamicAxisName);
-                        return *m_allKnownDynamicAxisNames.find(newDynamicAxisName);
-                    }
-                }
-            }
+            CNTK_API bool RegisterAxisName(const std::wstring& axisName);
+            CNTK_API const std::wstring& NewUniqueDynamicAxisName(const std::wstring& axisNamePrefix);
 
         private:
             std::unordered_set<std::wstring> m_allKnownDynamicAxisNames;
@@ -1640,6 +1617,8 @@ private:
 
         void SetOwner(Function* ownerFunction);
 
+        Variable OwnerPreservingCopy() const;
+
     private:
 #ifdef SWIGCSHARP
     public:
@@ -1652,8 +1631,10 @@ private:
 
     protected:
         VariableFieldsPtr m_dataFields;
-
         static const size_t s_serializationVersion = 1;
+
+    private:
+        std::shared_ptr<const Function> m_outputOwnerFunction; // Currently needed for outputs.
     };
 
     // TODO: Variable equality should be based on uids.
@@ -2702,6 +2683,7 @@ namespace CNTK
         }
 
         CNTK_API std::shared_ptr<std::vector<Variable>> InputsImpl() const;
+        CNTK_API std::shared_ptr<std::vector<Variable>> OutputsImpl() const;
 
         void ValidateOrUpdateOutputs(std::unordered_map<const Function*, size_t>& visitedFunctions, bool& recurrentNodeOutputModified);
 
@@ -2726,11 +2708,13 @@ namespace CNTK
     public:
         CNTK_API Function(const std::vector<Variable>& inputs, const std::wstring& name = L"", const std::wstring& uid = Internal::GenerateUid(L"UserDefinedFunction"));
 
+    protected:
+        std::vector<Variable> m_outputs;
+
     private:
         CNTK_API Function(const std::vector<Variable>& inputs, Dictionary&& functionConfig, const FunctionPtr& rootFunction, const std::wstring& name, const std::wstring& uid);
 
         std::vector<Variable> m_inputs;
-
         std::once_flag m_outputsInitFlag;
         std::vector<Variable> m_outputs;
 
