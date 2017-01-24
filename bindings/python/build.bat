@@ -7,7 +7,7 @@ call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall" amd64
 set MSSdk=1
 set DISTUTILS_USE_SDK=1
 
-python .\setup.py build_ext --inplace --force
+python .\setup.py build_ext --inplace --force --compiler msvc
 if errorlevel 1 exit /b 1
 
 set PATH=%CD%\..\..\x64\Release;%PATH%
